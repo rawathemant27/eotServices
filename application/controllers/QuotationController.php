@@ -14,6 +14,7 @@ class QuotationController extends CI_Controller
 			$this->requestData = json_decode(file_get_contents("php://input"));
 		else 
 			$this->requestData = (object)$_REQUEST;
+		$this->load->helper('pdf_helper');
 	}
 
 	/**
@@ -321,6 +322,157 @@ class QuotationController extends CI_Controller
 	}
 
 
+
+
+	/**
+	 * sendMail
+	 * send mail with attachment
+	 * json
+	 */
+	public function sendMail()
+	{
+		//-- get params
+		$email = isset($this->requestData->email)?$this->requestData->email:"";
+		$subject = isset($this->requestData->subject)?$this->requestData->subject:"";
+		$message = isset($this->requestData->message)?$this->requestData->message:"";
+
+		try
+		{
+			//-- email prepare
+			$fileName = $this->pdf();
+			$arrayResponse = $this->QuotationModel->sendEmail($email,$subject,$message,$fileName);
+			if(empty($arrayResponse))
+				throw new Exception('Response not get, please try again.');
+		} 
+		catch (Exception $e)
+		{
+			echo $this->CommonModel->getJsonData(array('success'=> false, 'message' => $e->getMessage(), 'data' => []));
+			exit();
+		}
+		//-- convert arrayResponse to json
+		echo $this->CommonModel->getJsonData($arrayResponse);
+	}
+
+
+
+	function pdf()
+	{
+		    tcpdf();
+
+		    $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+		    $pdf->SetCreator(PDF_CREATOR);
+		    $pdf->SetAuthor('Manikandan');
+		    $pdf->SetTitle('Quote');
+		    $pdf->SetSubject('Quote');
+		    $pdf->SetKeywords('PDF, Quote');
+
+		    $pdf->SetDefaultMonospacedFont(PDF_FONT_MONOSPACED);
+		    $pdf->SetFooterMargin(PDF_MARGIN_FOOTER);
+		    $pdf->SetAutoPageBreak(TRUE, PDF_MARGIN_BOTTOM);
+		    $pdf->setImageScale(PDF_IMAGE_SCALE_RATIO);
+
+		    $pdf->SetFont('times', '', 15); 
+
+		    $pdf->AddPage();
+
+		    // create some HTML content
+		    $now = date("j F, Y");
+		    $company_name = 'ABC test company';
+
+		    $user_name = 'Mr. Manikandan';
+		    $invoice_ref_id = '2013/12/03';
+
+
+		    $html = '';
+		    $html .= '<table style="padding-top:25px;">
+		                <tr>
+		                    <td colspan="2" align="left"><h4>Kannama & CO</h4></td>
+		                    <td colspan="2" align="right"><h1 style="color:#6C8BB5;">Quote</h1></td>
+		                </tr>
+
+		                <tr>
+		                    <td colspan="2" align="left"><table><tr><td>'.$user_name.'</td></tr><tr><td>Mob NO : 9791564278</td></tr></table></td>
+		                    <td colspan="2" align="right"><table border="1" align="center"><tr><td>Date</td><td>'.$now.'</td></tr><tr><td>Quote</td><td>#0041</td></tr></table></td>
+		                </tr>
+
+		                <tr>
+		                    <td colspan="2" align="left"><table><tr><td style="background-color: #2B7DB9;color:white;width:75%;">Customer</td></tr><tr><td>Dear senthil kumar,</td></tr><tr><td>39,Jawahar sangam street,Chockalingapuram,Aruppukottai.</td></tr><tr><td><b>Mob no : </b> 9791564821</td></tr></table></td>
+		                </tr>
+
+
+		             </table>';
+
+		    $html .= '<br><br>
+		              <table border="1" cellpadding="5">
+		                <tr style="background-color: #2B7DB9;color:white;">
+		                    <td colspan="4">Quote # Quote 001</td>            
+		                </tr>
+		                <tr>
+		                    <td><b>Product</b></td>
+		                    <td><b>Quantity</b></td>
+		                    <td><b>Subtotal</b></td>
+		                    <td align="right"><b>Amount (Rs.)</b></td>
+		                </tr>
+		                <tr style="background-color: #C1E1F8;">
+		                    <td>Product 1</td>
+		                    <td>30</td>
+		                    <td>10</td>
+		                    <td align="right">300</td>
+		                </tr>
+		                <tr>
+		                    <td>Product 3</td>
+		                    <td>15</td>
+		                    <td>3</td>
+		                    <td align="right">75</td>
+		                </tr>
+		                <tr style="background-color: #C0E1F8;">
+		                    <td>Product 2</td>
+		                    <td>15</td>
+		                    <td>3</td>
+		                    <td align="right">75</td>
+		                </tr>
+		                <tr>
+		                    <td colspan="3" align="right"><b>Sub Total:</b></td>
+		                    <td align="right"><b> 375</b></td>
+		                </tr>
+		                <tr>
+		                    <td colspan="3" align="right"><b>GST:</b></td>
+		                    <td align="right"><b> 5</b></td>
+		                </tr>
+		                <tr>
+		                    <td colspan="3" align="right"><b>CGST:</b></td>
+		                    <td align="right"><b> 10</b></td>
+		                </tr>
+		                <tr>
+		                    <td colspan="3" align="right"><b>Delivery:</b></td>
+		                    <td align="right"><b> 100</b></td>
+		                </tr>
+		                <tr>
+		                    <td colspan="3" align="right"><b>Total:</b></td>
+		                    <td align="right"><b> 1000</b></td>
+		                </tr>
+		             </table>';
+
+		    $html = str_replace('{now}',$now, $html);
+		    $html = str_replace('{company_name}',$company_name, $html);
+		    $html = str_replace('{user_name}',$user_name, $html);
+		    $html = str_replace('{invoice_ref_id}',$invoice_ref_id, $html);
+
+		    $pdf->writeHTML($html, true, false, true, false, '');
+
+		    $pdf->lastPage();
+
+		    $fileName = time() . '.pdf';
+		    ob_clean();
+		    $pdf->Output(FCPATH . 'uploads/' . $fileName, 'F');
+
+		    if (file_exists(FCPATH . 'uploads/' . $fileName)) {
+		        return $fileName;
+		    } else {
+		        return false;
+		    }
+
+  }
 
 	
 }

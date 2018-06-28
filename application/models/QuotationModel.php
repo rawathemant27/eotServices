@@ -390,6 +390,51 @@ class QuotationModel extends CI_Model
 		return $responseArray;
 	}
 
+
+
+
+	public function sendEmail($email,$subject,$message,$fileName)
+	{
+
+	       $config = Array(
+		      'protocol' => 'smtp',
+		      'smtp_host' => 'ssl://smtp.googlemail.com',
+		      'smtp_port' => 465,
+		      'smtp_user' => 'rawat.hemant27@gmail.com', 
+		      'smtp_pass' => PASSWORD, 
+		      'mailtype' => 'html',
+		      'charset' => 'iso-8859-1',
+		      'wordwrap' => TRUE
+	      );
+
+	      $this->load->library('email', $config);
+	      $this->email->set_newline("\r\n");
+	      $this->email->from('rawat.hemant27@gmail.com', 'Hemant Rawat');
+	      $this->email->to($email);
+	      $this->email->subject($subject);
+	      $this->email->message($message);
+	      $this->email->attach('./uploads/'.$fileName);
+
+	      if($this->email->send())
+		  {
+
+		  	 $file = FCPATH . 'uploads/' . $fileName;
+             if (file_exists($file)) {
+                unlink($file);
+                $responseArray = array("success"=>true,'message'=>'Mail send successfully.',); 
+             }
+
+		  }
+		  else
+		  {
+		       $responseArray = array("success"=>false,'message'=>$this->email->print_debugger(), 'data'=>[]);
+		  }
+
+	    return $responseArray;
+
+	}
+
+
 	
 }
 ?>
